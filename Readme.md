@@ -28,3 +28,5 @@ Note: Its is advices to give a -1 seconds trim offset in the start, whisperx cut
 
 - To add new audio files, just transcribe them via the UI and then select the `audio_list.json`, it will add the new files to the list (takes a bit) DONT SELECT THE WHISPER.JSON AGAIN, IT WILL OVERWRITE THE WHOLE LIST, AND THEREFORE YOUR PROGESS. Also make sure to chekc the `skip existing` in the webui, otherwise the trimmed audio files will be overwritten, and the trim is gone.
 - The word quality is taken from whisperX, therefore its only an indicator nothing more.
+
+![image](https://github.com/Dschogo/audioslicer/blob/master/image.png?raw=true)
