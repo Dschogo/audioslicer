@@ -30,3 +30,8 @@ Note: Its is advices to give a -1 seconds trim offset in the start, whisperx cut
 - The word quality is taken from whisperX, therefore its only an indicator nothing more.
 
 ![image](https://github.com/Dschogo/audioslicer/blob/master/image.png?raw=true)
+
+
+## Todo / Improvements
+
+Waveform preview with two handles to trim visually - idk how yet
