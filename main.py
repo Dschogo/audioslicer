@@ -76,7 +76,7 @@ class MainWindow(QWidget, Ui_MainWindow):
                 print(f"Error loading whisper.json {e}") 
 
         # name train.txt or 
-        file = QFileDialog.getOpenFileName(self, 'Open file', "../" +  str(pathlib.Path().resolve()) + "/training", "JSON files (*.json)")
+        file = QFileDialog.getOpenFileName(self, 'Open file', str(pathlib.Path().resolve()) + "/training", "JSON files (*.json)")
         if file[0].endswith("audio_list.json"):
             with open(file[0], "r", encoding="utf-8") as f:
                 self.audio_list = json.load(f)
