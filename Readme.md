@@ -4,8 +4,9 @@
 
 - ffmpeg (ffprobe)
 - PyQt6
+- ffprobe-python
 Clone this repo to "modules".
-To install the requirements, activate your venv (`venv\Scripts\activate` on Windows) and run `pip install ffmpeg-python PyQt6`.
+To install the requirements, activate your venv (`venv\Scripts\activate` on Windows) and run `pip install ffmpeg-python PyQt6 ffprobe-python`.
 
 ## Usage
 

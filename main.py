@@ -55,69 +55,25 @@ class MainWindow(QWidget, Ui_MainWindow):
                         return True
                 return False
 
-            with open(self.voice_path + "whisper.json", "r" , encoding="utf-8") as f:
-                whisp_f = json.load(f)
-                for file in tqdm.tqdm(whisp_f, position=0, leave=True):
-                    for seg in tqdm.tqdm(whisp_f[file]["segments"], position=1, leave=False):
-                        aud = file.replace(".wav", f"_{seg['id']:05d}.wav")
-                        # id has 5 digits
-                        if resume and already_parsed(aud):
-                            continue
-                        self.audio_list["audio"].append({
-                            "audio": aud,
-                            "text": seg["text"].strip(),
-                            "words": seg["words"],
-                            "length": math.floor((seg["end"] - seg["start"]) * 100) / 100,
-                            "status": 2 if "..." in seg["text"] else -1
-                        })
+            try:
 
-            # def already_parsed(aud):
-            #     for seg in self.audio_list["audio"]:
-            #         if aud in seg['audio']:
-            #             return True
-            #     return False
-            # with open(self.voice_path + "whisper.json", "r", encoding="utf-8") as w:
-            #         whisper_json = json.load(w)
-            #         with open(self.voice_path + "train.txt", "r", encoding="utf-8") as f:
-            #             lines = f.readlines()
-            #             for line in tqdm.tqdm(lines, position=0, leave=True):
-            #                 if len(line.split("_")) > 1:
-            #                     audio = line.split("|")[0].split("/")[-1]
-            #                     # check segments
-            #                     id = line.split("_")[-1].split(".")[0]
-            #                     audio_org = audio.replace(f"_{id}.wav", f".wav")
-            #                     if resume and already_parsed(audio):
-            #                         continue
-            #                     for ids in whisper_json[audio_org]["segments"]:
-            #                         if ids["id"] == int(id):
-            #                             words = ids["words"]
-            #                             text = ids["text"]
-            #                             length = math.floor((ids["end"] - ids["start"]) * 100) / 100
-            #                             self.audio_list["audio"].append({
-            #                                 "audio": audio,
-            #                                 "text": text.strip(),
-            #                                 "words": words,
-            #                                 "length": length,
-            #                                 "status": -1
-            #                             })
-            #                             break
-            #                 else:    
-            #                     audio = line.split("|")[0]
-            #                     text = line.split("|")[1].rstrip()
-            #                     for seg in whisper_json["segments"]:
-            #                         if seg == audio.split("/")[-1]:
-            #                             words = seg["words"]
-            #                             text = seg["text"]
-            #                             length = math.floor((seg["end"] - seg["start"]) * 100) / 100
-            #                             self.audio_list["audio"].append({
-            #                                 "audio": audio,
-            #                                 "text": text.strip(),
-            #                                 "words": words,
-            #                                 "length": length,
-            #                                 "status": -1
-            #                             })
-            #                             break
-            
+                with open(self.voice_path + "whisper.json", "r" , encoding="utf-8") as f:
+                    whisp_f = json.load(f)
+                    for file in tqdm.tqdm(whisp_f, position=0, leave=True):
+                        for seg in tqdm.tqdm(whisp_f[file]["segments"], position=1, leave=False):
+                            aud = file.replace(".wav", f"_{seg['id']:05d}.wav")
+                            # id has 5 digits
+                            if resume and already_parsed(aud):
+                                continue
+                            self.audio_list["audio"].append({
+                                "audio": aud,
+                                "text": seg["text"].strip(),
+                                "words": seg["words"],
+                                "length": math.floor((seg["end"] - seg["start"]) * 100) / 100,
+                                "status": 2 if "..." in seg["text"] else -1
+                            })
+            except Exception as e:
+                print(f"Error loading whisper.json {e}") 
 
         # name train.txt or 
         file = QFileDialog.getOpenFileName(self, 'Open file', "../" +  str(pathlib.Path().resolve()) + "/training", "JSON files (*.json)")
