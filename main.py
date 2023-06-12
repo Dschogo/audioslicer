@@ -14,6 +14,7 @@ import time
 import ffmpeg
 import shutil
 import ffprobe
+import concurrent.futures
 
 from main_window import Ui_MainWindow
 
@@ -65,11 +66,12 @@ class MainWindow(QWidget, Ui_MainWindow):
                             # id has 5 digits
                             if resume and already_parsed(aud):
                                 continue
+                            length = math.floor(float(ffprobe.FFProbe(self.voice_path + "audio/" + aud).audio[0].duration) * 100) / 100
                             self.audio_list["audio"].append({
                                 "audio": aud,
                                 "text": seg["text"].strip(),
                                 "words": seg["words"],
-                                "length": math.floor((seg["end"] - seg["start"]) * 100) / 100,
+                                "length": length,
                                 "status": 2 if "..." in seg["text"] else -1
                             })
             except Exception as e:

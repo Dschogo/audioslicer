@@ -17,6 +17,7 @@ Select either a generated audio_list.json (by this tool to continue working on t
 
 Note: It is adviced to give a -1s trim offset for the start, whisperx cuts often to late, and you can cut it later with this tool.
 
+
 ## Buttons
 
 - prev / next (alt+left / alt+right): go to the previous / next audio file
@@ -31,6 +32,7 @@ Note: It is adviced to give a -1s trim offset for the start, whisperx cuts often
 ## Notes
 
 - To add new audio files, just transcribe them via the UI and then select the `audio_list.json`, it will add the new files to the list (takes a bit) DONT SELECT THE WHISPER.JSON AGAIN, IT WILL OVERWRITE THE WHOLE LIST, AND THEREFORE YOUR PROGESS. Also make sure to check the `skip existing` in the webui, otherwise the trimmed audio files will be overwritten, and the trim is gone.
+- First import will be slow (or adding new files) - each file will be probed by ffmpeg for the real length
 - The word quality is taken from whisperX, therefore its only an indicator nothing more.
 - Every sentence including `...` is auto-excluded from traning (can be changed again - but thats why the progressbars aren't at 0 from the beginning and the "good/deleted segments" bar wont represent the actual outcome until a good amount of segments are flagged
 - After hearing a segement, it gets auto flagged as "okey" and therefore marked as good to train
