@@ -18,11 +18,12 @@ import concurrent.futures
 
 from main_window import Ui_MainWindow
 
+
 class StoppableThread(threading.Thread):
     """Thread class with a stop() method. The thread itself has to check
     regularly for the stopped() condition."""
 
-    def __init__(self,  *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(StoppableThread, self).__init__(*args, **kwargs)
         self._stop_event = threading.Event()
 
@@ -31,6 +32,7 @@ class StoppableThread(threading.Thread):
 
     def stopped(self):
         return self._stop_event.is_set()
+
 
 class MainWindow(QWidget, Ui_MainWindow):
     def __init__(self):
@@ -48,91 +50,82 @@ class MainWindow(QWidget, Ui_MainWindow):
         self.selected_row = 0
         self.music_thread = None
 
-        def iter_load(resume=False):
+        PROBEONLOAD = False
 
+        def iter_load(resume=False):
             def already_parsed(aud):
                 for seg in self.audio_list["audio"]:
-                    if aud == seg['audio']:
+                    if aud == seg["audio"]:
                         return True
                 return False
 
-            try:
-
-                with open(self.voice_path + "whisper.json", "r" , encoding="utf-8") as f:
-                    whisp_f = json.load(f)
-                    for file in tqdm.tqdm(whisp_f, position=0, leave=True):
-                        for seg in tqdm.tqdm(whisp_f[file]["segments"], position=1, leave=False):
+            with open(self.voice_path + "whisper.json", "r", encoding="utf-8") as f:
+                whisp_f = json.load(f)
+                for file in tqdm.tqdm(whisp_f, position=0, leave=True):
+                    for seg in tqdm.tqdm(whisp_f[file]["segments"], position=1, leave=False):
+                        # if only one segegment in clip
+                        if len(whisp_f[file]["segments"]) == 1:
+                            aud = file
+                        else:
                             aud = file.replace(".wav", f"_{seg['id']:05d}.wav")
-                            # id has 5 digits
-                            if resume and already_parsed(aud):
-                                continue
+                        # id has 5 digits
+                        if resume and already_parsed(aud):
+                            continue
+                        if PROBEONLOAD:
                             length = math.floor(float(ffprobe.FFProbe(self.voice_path + "audio/" + aud).audio[0].duration) * 100) / 100
-                            self.audio_list["audio"].append({
-                                "audio": aud,
-                                "text": seg["text"].strip(),
-                                "words": seg["words"],
-                                "length": length,
-                                "status": 2 if "..." in seg["text"] else -1
-                            })
-            except Exception as e:
-                print(f"Error loading whisper.json {e}") 
+                        else:
+                            length = math.floor((float(seg["end"]) - float(seg["start"])) * 100) / 100
+                        self.audio_list["audio"].append(
+                            {"audio": aud, "text": seg["text"].strip(), "words": seg["words"], "length": length, "status": 2 if "..." in seg["text"] else -1}
+                        )
 
-        # name train.txt or 
-        file = QFileDialog.getOpenFileName(self, 'Open file', str(pathlib.Path().resolve()) + "/training", "JSON files (*.json)")
+        # name train.txt or
+        file = QFileDialog.getOpenFileName(self, "Open file", str(pathlib.Path().resolve()) + "/training", "JSON files (*.json)")
         if file[0].endswith("audio_list.json"):
             with open(file[0], "r", encoding="utf-8") as f:
                 self.audio_list = json.load(f)
                 self.voice_path = file[0].replace("audio_list.json", "")
                 iter_load(True)
-                          
+
         else:
             self.voice_path = file[0].replace("whisper.json", "")
-            
-            try:
-                iter_load()
-                                        
-            except Exception as e:
-                print(f"Error loading whisper.json {e}")
-                                    
-                # disable qually table
-                self.table_qualli.setEnabled(False)
-                self.table_qualli.setHidden(True)
 
-        # dump json 
+            iter_load()
+
+        # dump json
         with open(f"{self.voice_path}audio_list.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(self.audio_list, indent=4, ensure_ascii=False))
-    
+
         # create column view model#
         self.model = QtGui.QStandardItemModel()
         self.model.setHorizontalHeaderLabels(["Audio", "Text"])
         # add rows
         for audio in self.audio_list["audio"]:
-            self.model.appendRow([
-                QtGui.QStandardItem(audio["audio"]),
-                QtGui.QStandardItem(str(audio["length"])),
-                QtGui.QStandardItem(audio["text"]),
-            ])
+            self.model.appendRow(
+                [
+                    QtGui.QStandardItem(audio["audio"]),
+                    QtGui.QStandardItem(str(audio["length"])),
+                    QtGui.QStandardItem(audio["text"]),
+                ]
+            )
 
         if file[0].endswith("audio_list.json"):
             # recover all status colors
             for i in tqdm.tqdm(range(len(self.audio_list["audio"])), position=0, leave=True):
                 self.update_color(i)
-                
-        
+
         # add model to table view, on click event
         self.tableView.setModel(self.model)
         self.tableView.clicked.connect(self.select_row_event)
         # set table view column width
         self.tableView.setColumnWidth(1, 30)
 
-        
         self.trim_s.setValidator(QtGui.QDoubleValidator().setRange(0.0, 10.0))
         self.trim_e.setValidator(QtGui.QDoubleValidator().setRange(0.0, 10.0))
 
         # on text edit change event
         self.txt_edit.textChanged.connect(self.update_text)
 
-        
         self.select_row(0)
 
         # register shortcuts
@@ -145,30 +138,28 @@ class MainWindow(QWidget, Ui_MainWindow):
 
         # set focus to text edit
         self.txt_edit.setFocus()
-        self.tableView.setStyleSheet("QTableView::item:selected { background-color: #0077c2; }")   
+        self.tableView.setStyleSheet("QTableView::item:selected { background-color: #0077c2; }")
 
         # reset trim
         self.trim_s.setText("0.0")
         self.trim_e.setText("0.0")
 
-
     def play_audio(self):
 
         # play audio non ui blocking
         try:
-            filename = f'''{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}'''
+            filename = f"""{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}"""
             winsound.PlaySound(filename, winsound.SND_ASYNC)
         except Exception as e:
             print(f"Error playing audio {e}")
-        
+
         # set status to 0
         if self.audio_list["audio"][self.selected_row]["status"] == -1:
             self.audio_list["audio"][self.selected_row]["status"] = 0
 
-
     def trim_restore(self):
-        filename = f'''{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}'''
-        filename_copy = f'''{self.voice_path}audio_before_trim/{self.audio_list['audio'][self.selected_row]['audio']}.wav'''
+        filename = f"""{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}"""
+        filename_copy = f"""{self.voice_path}audio_before_trim/{self.audio_list['audio'][self.selected_row]['audio']}.wav"""
 
         shutil.copyfile(filename_copy, filename)
 
@@ -185,46 +176,46 @@ class MainWindow(QWidget, Ui_MainWindow):
     def trim_audio(self):
         # trim audio
         try:
-            filename = f'''{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}'''
+            filename = f"""{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}"""
             start = float(self.trim_s.text())
             endd = float(self.trim_e.text())
 
             # get length of  audio via ffprobe
-            
-            length = float(ffprobe.FFProbe(f'''{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}''').audio[0].duration)
+
+            length = float(ffprobe.FFProbe(f"""{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}""").audio[0].duration)
 
             end = length - endd
-            
+
             # check if start is bigger than end
             if start > end:
                 print("start is bigger than end")
                 self.set_status("start > end")
                 return
-           
+
             if start == 0.0 and end == 0.0:
                 print("start and end are 0")
                 self.set_status("start and end are 0")
                 return
-            
-            filename_copy = f'''{self.voice_path}audio_before_trim/{self.audio_list['audio'][self.selected_row]['audio']}.wav'''
+
+            filename_copy = f"""{self.voice_path}audio_before_trim/{self.audio_list['audio'][self.selected_row]['audio']}.wav"""
 
             # copy audio to backup
-            if not os.path.exists(f'''{self.voice_path}audio_before_trim'''):
-                os.makedirs(f'''{self.voice_path}audio_before_trim''')
+            if not os.path.exists(f"""{self.voice_path}audio_before_trim"""):
+                os.makedirs(f"""{self.voice_path}audio_before_trim""")
             shutil.copyfile(filename, filename_copy)
 
-            #convert to samples
+            # convert to samples
             sample_rate = 22050
             start_s = math.floor(start * sample_rate)
             end_s = math.floor(end * sample_rate)
 
             # trim using ffmpeg
-            (ffmpeg
-                .input(filename_copy)
-                .filter('atrim', start_sample=start_s, end_sample=end_s)
-                .filter('asetpts', 'PTS-STARTPTS') #reset timestamps
-                .output(f'''{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}''')
-                .global_args('-loglevel', 'quiet')
+            (
+                ffmpeg.input(filename_copy)
+                .filter("atrim", start_sample=start_s, end_sample=end_s)
+                .filter("asetpts", "PTS-STARTPTS")  # reset timestamps
+                .output(f"""{self.voice_path}audio/{self.audio_list['audio'][self.selected_row]['audio']}""")
+                .global_args("-loglevel", "quiet")
                 .overwrite_output()
                 .run()
             )
@@ -243,12 +234,10 @@ class MainWindow(QWidget, Ui_MainWindow):
         except Exception as e:
             print(f"Error trimming audio {e}")
 
-
     def select_row_event(self, row: QModelIndex):
         self.update_color(self.selected_row)
         self.selected_row = row.row()
         self.select_row(self.selected_row)
-
 
     def select_row(self, row: int):
         self.txt_edit.setText(self.audio_list["audio"][row]["text"])
@@ -257,21 +246,23 @@ class MainWindow(QWidget, Ui_MainWindow):
         self.model_qualli = QtGui.QStandardItemModel()
         self.model_qualli.setHorizontalHeaderLabels(["Word", "Qually"])
         # add rows
-        #print(self.audio_list["audio"][row]["words"])
+        # print(self.audio_list["audio"][row]["words"])
         for word in self.audio_list["audio"][row]["words"]:
-            self.model_qualli.appendRow([
-                QtGui.QStandardItem(word["word"]),
-                QtGui.QStandardItem(str(word["score"]) if "score" in word else ""),
-            ])
+            self.model_qualli.appendRow(
+                [
+                    QtGui.QStandardItem(word["word"]),
+                    QtGui.QStandardItem(str(word["score"]) if "score" in word else ""),
+                ]
+            )
             # color row based on score
             if "score" in word:
                 # gradient from red to green
-                col = QtGui.QColor(int(255 - 255 * word["score"]), int(word["score"]*255), 0)
+                col = QtGui.QColor(int(255 - 255 * word["score"]), int(word["score"] * 255), 0)
 
                 # color selected row
                 for i in range(self.model_qualli.columnCount()):
                     self.model_qualli.item(self.model_qualli.rowCount() - 1, i).setBackground(col)
-        
+
         # add model to table view, on click event
         self.table_qualli.setModel(self.model_qualli)
 
@@ -280,17 +271,16 @@ class MainWindow(QWidget, Ui_MainWindow):
         self.trim_e.setText("0.0")
 
         self.txt_edit.setFocus()
-        
+
         self.update_progress()
         self.play_audio()
-
 
     def update_color(self, row: int):
         if self.audio_list["audio"][row]["status"] == 0:
             col = QtGui.QColor(150, 255, 150)
         elif self.audio_list["audio"][row]["status"] == 1:
             col = QtGui.QColor(100, 255, 10)
-        elif self.audio_list["audio"][row]["status"] == 2:    
+        elif self.audio_list["audio"][row]["status"] == 2:
             col = QtGui.QColor(255, 150, 150)
         else:
             col = QtGui.QColor(255, 255, 255)
@@ -307,7 +297,7 @@ class MainWindow(QWidget, Ui_MainWindow):
 
         if self.audio_list["audio"][self.selected_row]["text"] == self.txt_edit.text():
             return
-        
+
         self.audio_list["audio"][self.selected_row]["text"] = self.txt_edit.text()
 
         # update saudiolist status
@@ -316,14 +306,12 @@ class MainWindow(QWidget, Ui_MainWindow):
 
         # update table view
         self.model.item(self.selected_row, 2).setText(self.txt_edit.text())
-        
 
     def next(self):
         self.update_color(self.selected_row)
         if self.selected_row < len(self.audio_list["audio"]) - 1:
             self.selected_row += 1
         self.select_row(self.selected_row)
-
 
     def prev(self):
         self.update_color(self.selected_row)
@@ -350,10 +338,10 @@ class MainWindow(QWidget, Ui_MainWindow):
         # self.progressBar.setValue(int(value * 100))
         self.set_status(str(round(self.good_count[2] / 3600, 2)) + "h")
 
-
-
         if self.good_count[0] > 0:
-            self.progressBar_2.setFormat("%d / %d - %.02f %%" % ((self.good_count[0] - self.good_count[1]), self.good_count[0], (self.good_count[0] - self.good_count[1]) / self.good_count[0] * 100))
+            self.progressBar_2.setFormat(
+                "%d / %d - %.02f %%" % ((self.good_count[0] - self.good_count[1]), self.good_count[0], (self.good_count[0] - self.good_count[1]) / self.good_count[0] * 100)
+            )
             self.progressBar_2.setValue(int((self.good_count[0] - self.good_count[1]) / self.good_count[0] * 100))
         else:
             self.progressBar_2.setValue(0)
@@ -368,7 +356,7 @@ class MainWindow(QWidget, Ui_MainWindow):
             if audio["status"] == 0 or audio["status"] == 1:
                 shot_list.append([audio["audio"], audio["length"], audio["text"]])
         shot_list.sort(key=lambda x: x[1])
-        shot_list = shot_list[:int(len(shot_list) * 0.02)]
+        shot_list = shot_list[: int(len(shot_list) * 0.02)]
         # rename old train.txt to train.txt.bak with timestamp
         os.rename(self.voice_path + "train.txt", self.voice_path + "train.txt.bak." + str(int(time.time())))
 
@@ -379,8 +367,6 @@ class MainWindow(QWidget, Ui_MainWindow):
             for shot in shot_list:
                 f.write("audio/" + shot[0] + "|" + shot[2].strip() + "\n")
 
-
-        
         with open(self.voice_path + "train.txt", "w", encoding="utf-8") as f:
             for audio in self.audio_list["audio"]:
                 if audio["status"] == 0 or audio["status"] == 1:
@@ -400,23 +386,20 @@ class MainWindow(QWidget, Ui_MainWindow):
         self.set_status("Saved")
 
     def delete(self):
-        
+
         self.update_color(self.selected_row)
         if self.audio_list["audio"][self.selected_row]["status"] != 2:
             self.audio_list["audio"][self.selected_row]["status"] = 2
-            self.tableView.setStyleSheet("QTableView::item:selected { background-color: #f61c0d; }")    
+            self.tableView.setStyleSheet("QTableView::item:selected { background-color: #f61c0d; }")
         else:
             self.audio_list["audio"][self.selected_row]["status"] = 1
-            self.tableView.setStyleSheet("QTableView::item:selected { background-color: #0077c2; }")    
-
-        
-        
-        
+            self.tableView.setStyleSheet("QTableView::item:selected { background-color: #0077c2; }")
 
     def set_status(self, text):
         self.label.setText(text)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
